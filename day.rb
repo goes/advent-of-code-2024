@@ -17,7 +17,7 @@ class Day
   end
 
   def read_lines
-    File.readlines(file_name)
+    File.readlines(file_name).collect(&:strip)
   end
 
   def read_matrix
