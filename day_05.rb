@@ -35,10 +35,13 @@ class Update
   end
 
   def valid?(rules)
-    applicable = rules.select { |rule| (@pages & rule.values).size == 2 }
-    applicable.all? do |rule|
+    rules.select { |rule| applies?(rule) }.all? do |rule|
       @pages.index(rule.x) < @pages.index(rule.y)
     end
+  end
+
+  def applies?(rule)
+    (@pages & rule.values).size == 2
   end
 
   def value_if_valid(rules)
@@ -48,17 +51,16 @@ class Update
 
   def value_if_invalid(rules)
     return 0 if valid?(rules)
-    fixed_pages = fix(rules)
-    return fixed_pages[@pages.size / 2]
+
+    return fixed_pages(rules)[@pages.size / 2]
   end
 
-  def fix(rules)
+  def fixed_pages(rules)
     fixed_pages = @pages.dup
     rules.sort_by { |rule| rule.x }.each do |rule|
-      next unless (fixed_pages & rule.values).size == 2
+      next unless applies?(rule)
       next if (pos_x = fixed_pages.index(rule.x)) < (pos_y = fixed_pages.index(rule.y))
-      fixed_pages.delete(rule.x)
-      fixed_pages.insert(pos_y, rule.x)
+      fixed_pages.tap { |p| p.delete(rule.x) }.insert(pos_y, rule.x)
     end
     fixed_pages
   end
