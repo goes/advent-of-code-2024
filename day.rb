@@ -1,7 +1,7 @@
 require "debug"
 
 class Day
-  attr_accessor :mode, :day
+  attr_accessor :mode, :day, :matrix, :nr_of_rows, :nr_of_columns
 
   def initialize(day)
     self.day = day
@@ -13,6 +13,9 @@ class Day
   end
 
   def file_name
+    fn = ("#{__dir__}/day_%02d/input_#{mode}.txt" % self.day)
+    return fn if File.exist?(fn)
+
     "./input/day_%02d_#{mode == :test ? 1 : 2}.txt" % self.day
   end
 
@@ -22,7 +25,10 @@ class Day
 
   def read_matrix
     rows = read_lines
-    matrix = rows.collect { |row| row.strip.chars }
+    @matrix = rows.collect { |row| row.strip.chars }
+    @nr_of_rows = @matrix.size
+    @nr_of_columns = @matrix.first.size
+    @matrix
   end
 
   def parse_input
