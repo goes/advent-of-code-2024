@@ -12,6 +12,23 @@ class Day
   def reset
   end
 
+  def parse_input
+    raise NotImplementedError
+  end
+
+  def solve
+    { 1 => :solution_one, 2 => :solution_two }.each do |idx, selector|
+      solutions = %i[test real].collect do |mode|
+        self.mode = mode
+        reset
+        parse_input
+        send(selector)
+      end
+
+      puts "Dag #{@day}, deel #{idx}: #{solutions.join(", ")}"
+    end
+  end
+
   def file_name
     fn = ("#{__dir__}/day_%02d/input_#{mode}.txt" % self.day)
     return fn if File.exist?(fn)
@@ -31,20 +48,92 @@ class Day
     @matrix
   end
 
-  def parse_input
-    raise NotImplementedError
+  def matrix_elements
+    return [] unless @matrix
+    (0..nr_of_columns - 1).flat_map do |x|
+      (0..nr_of_rows - 1).collect do |y|
+        MatrixElement.new(x, y, @matrix[x][y])
+      end
+    end
   end
 
-  def solve
-    { 1 => :solution_one, 2 => :solution_two }.each do |idx, selector|
-      solutions = %i[test real].collect do |mode|
-        self.mode = mode
-        reset
-        parse_input
-        send(selector)
-      end
+  def matrix_contains?(x, y)
+    x.between?(0, nr_of_columns - 1) && y.between?(0, nr_of_rows - 1)
+  end
 
-      puts "Dag #{@day}, deel #{idx}: #{solutions.join(", ")}"
+  def matrix_each
+    (0..nr_of_columns - 1).each do |x|
+      (0..nr_of_rows - 1).each do |y|
+        yield x, y
+      end
+    end
+  end
+end
+
+class MatrixElement
+  attr_accessor :x, :y, :value
+
+  def initialize(x, y, value)
+    @x, @y, @value = x, y, value
+  end
+end
+
+class MatrixElement
+  attr_accessor :x, :y, :value
+
+  def initialize(x, y, value)
+    @x, @y, @value = x, y, value
+  end
+end
+
+class Map
+  attr_accessor :locations, :nr_of_rows, :nr_of_columns
+
+  def initialize(lines, &value_block)
+    @locations = []
+    rows = lines.collect { |row| row.strip.chars }
+    @nr_of_rows = rows.size
+    @nr_of_columns = rows.first.size
+    (0..nr_of_rows - 1).each do |y|
+      @locations << []
+      (0..nr_of_columns - 1).each do |x|
+        @locations.last << Location.new(x, y, value_block.call(rows[y][x]), self)
+      end
+    end
+  end
+
+  def locations_flattened
+    @locations.flatten
+  end
+
+  def location_at(x, y)
+    return nil unless x.between?(0, @nr_of_columns - 1)
+    return nil unless y.between?(0, @nr_of_rows - 1)
+
+    self.locations[y][x]
+  end
+
+  class Location
+    attr_accessor :x, :y, :value
+
+    def initialize(x, y, value, map)
+      @x, @y, @value, @map = x, y, value, map
+    end
+
+    def neighbours(include_diagonals: false)
+      raise if include_diagonals # not yet implemented
+      [[-1, 0], [1, 0], [0, -1], [0, 1]]
+        .each
+        .collect { |a| @map.location_at(x + a.first, y + a.last) }
+        .compact
+    end
+
+    def to_s
+      "(#{x},#{y}) : #{value}"
+    end
+
+    def inspect
+      to_s
     end
   end
 end
