@@ -47,7 +47,7 @@ class TrailHead
         valid_neighbours.collect { |n| path.dup << n }
       end
     end
-    paths.select { |p| p.last.value == 9 }
+    paths
   end
 end
 
