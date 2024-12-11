@@ -1,4 +1,5 @@
 require "debug"
+require "benchmark"
 
 class Day
   attr_accessor :mode, :day, :matrix, :nr_of_rows, :nr_of_columns
