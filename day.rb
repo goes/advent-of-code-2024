@@ -98,7 +98,8 @@ class Map
     (0..nr_of_rows - 1).each do |y|
       @locations << []
       (0..nr_of_columns - 1).each do |x|
-        @locations.last << Location.new(x, y, value_block.call(rows[y][x]), self)
+        input = rows[y][x]
+        @locations.last << Location.new(x, y, value_block ? value_block.call(input) : input, self)
       end
     end
   end
@@ -121,12 +122,16 @@ class Map
       @x, @y, @value, @map = x, y, value, map
     end
 
-    def neighbours(include_diagonals: false)
-      raise if include_diagonals # not yet implemented
-      [[-1, 0], [1, 0], [0, -1], [0, 1]]
-        .each
+    def neighbours(diagonals: false)
+      possible = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+      possible = possible + [[-1, -1], [1, 1], [1, -1], [-1, 1]] if diagonals
+      possible
         .collect { |a| @map.location_at(x + a.first, y + a.last) }
         .compact
+    end
+
+    def ==(other)
+      x == other.x && y == other.y
     end
 
     def to_s
