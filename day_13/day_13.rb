@@ -60,8 +60,6 @@ class ClawMachine
     price(pushes_a, pushes_b)
   end
 
-  81081081161 * 94 + 108108108148 * 22
-
   def price(pushes_a, pushes_b)
     return 0 unless pushes_a.to_i == pushes_a
     return 0 unless pushes_b.to_i == pushes_b
