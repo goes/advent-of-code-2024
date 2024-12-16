@@ -90,16 +90,23 @@ end
 class Map
   attr_accessor :locations, :nr_of_rows, :nr_of_columns
 
-  def initialize(lines, &value_block)
+  def self.new_from_input_lines(lines, &value_block)
+    arrays = lines.collect { |l| l.strip.chars.collect { |input| value_block ? value_block.call(input) : input } }
+    self.new(arrays)
+  end
+
+  def self.new_from_dimensions(columns, rows, initial_value: nil)
+    self.new(Array.new(rows).collect { |_| Array.new(columns, initial_value.dup) })
+  end
+
+  def initialize(arrays)
     @locations = []
-    rows = lines.collect { |row| row.strip.chars }
-    @nr_of_rows = rows.size
-    @nr_of_columns = rows.first.size
+    @nr_of_rows = arrays.size
+    @nr_of_columns = arrays.first.size
     (0..nr_of_rows - 1).each do |y|
       @locations << []
       (0..nr_of_columns - 1).each do |x|
-        input = rows[y][x]
-        @locations.last << Location.new(x, y, value_block ? value_block.call(input) : input, self)
+        @locations.last << Location.new(x, y, arrays[y][x], self)
       end
     end
   end
@@ -115,31 +122,41 @@ class Map
     self.locations[y][x]
   end
 
-  class Location
-    attr_accessor :x, :y, :value
-
-    def initialize(x, y, value, map)
-      @x, @y, @value, @map = x, y, value, map
+  def print
+    (0..nr_of_rows - 1).each do |y|
+      line = ""
+      (0..nr_of_columns - 1).each do |x|
+        line += location_at(x, y).value
+      end
+      puts line
     end
+  end
+end
 
-    def neighbours(diagonals: false)
-      possible = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-      possible = possible + [[-1, -1], [1, 1], [1, -1], [-1, 1]] if diagonals
-      possible
-        .collect { |a| @map.location_at(x + a.first, y + a.last) }
-        .compact
-    end
+class Location
+  attr_accessor :x, :y, :value, :map
 
-    def ==(other)
-      x == other.x && y == other.y
-    end
+  def initialize(x, y, value, map)
+    @x, @y, @value, @map = x, y, value, map
+  end
 
-    def to_s
-      "(#{x},#{y}) : #{value}"
-    end
+  def neighbours(diagonals: false)
+    possible = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+    possible = possible + [[-1, -1], [1, 1], [1, -1], [-1, 1]] if diagonals
+    possible
+      .collect { |a| @map.location_at(x + a.first, y + a.last) }
+      .compact
+  end
 
-    def inspect
-      to_s
-    end
+  def ==(other)
+    x == other.x && y == other.y
+  end
+
+  def to_s
+    "(#{x},#{y}) : #{value}"
+  end
+
+  def inspect
+    to_s
   end
 end

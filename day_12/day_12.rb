@@ -11,7 +11,7 @@ class Day12 < Day
   end
 
   def parse_input
-    @garden = Map.new(read_lines)
+    @garden = Map.new_from_input_lines(read_lines)
     @garden.locations_flattened.each { |loc| assign_region(loc) }
     @regions = merge_all_regions
   end
