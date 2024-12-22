@@ -6,177 +6,86 @@ class Day19 < Day
   end
 
   def reset
-    @racetrack, start = nil, nil
-    @all_scores = {}
+    @patterns = []
+    @designs = []
+    Design.reset_cache
   end
 
   def parse_input
-    setup_racetrack(read_lines)
-  end
-
-  def setup_racetrack(lines)
-    @racetrack = Map.new_from_input_lines(lines)
+    @towels = read_lines.first.split(",").map { |pattern| Towel.new(pattern.strip) }
+    @designs = read_lines[2..].map { |pattern| Design.new(pattern.strip, @towels) }
   end
 
   def solution_one
-    time = Path.new(@racetrack.dup).tap(&:solve).score
-    puts time
-
-    initialize_all_paths
-    return @all_scores.values.compact.count { |score| score <= (time - 100) }
+    @designs.select(&:possible?).size
   end
 
   def solution_two
-    0
-  end
-
-  def initialize_all_paths
-    (1..(@racetrack.nr_of_columns - 2)).each do |x|
-      (1..(@racetrack.nr_of_rows - 2)).each do |y|
-        racetracks = []
-        next unless @racetrack.location_at(x, y).is_wall?
-
-        if @racetrack.location_at(x - 1, y).is_shortcuttable? && @racetrack.location_at(x + 1, y).is_shortcuttable?
-          dupl = @racetrack.dup.tap { |t| t.location_at(x, y).value = "1" }.tap { |t| t.set_value(x - 1, y, "2", only_if_empty: true) }
-          dupl.location_at(x - 1, y).neighbours.select(&:is_empty?).each do |n|
-            racetracks << dupl.dup.tap { |t| t.location_at(n.x, n.y).value = "#" }
-          end
-          dupl = @racetrack.dup.tap { |t| t.location_at(x, y).value = "1" }.tap { |t| t.set_value(x + 1, y, "2", only_if_empty: true) }
-          dupl.location_at(x + 1, y).neighbours.select(&:is_empty?).each do |n|
-            racetracks << dupl.dup.tap { |t| t.location_at(n.x, n.y).value = "#" }
-          end
-        end
-        if @racetrack.location_at(x, y - 1).is_shortcuttable? && @racetrack.location_at(x, y + 1).is_shortcuttable?
-          dupl = @racetrack.dup.tap { |t| t.location_at(x, y).value = "1" }.tap { |t| t.set_value(x, y - 1, "2", only_if_empty: true) }
-          dupl.location_at(x, y - 1).neighbours.select(&:is_empty?).each do |n|
-            racetracks << dupl.dup.tap { |t| t.location_at(n.x, n.y).value = "#" }
-          end
-          dupl = @racetrack.dup.tap { |t| t.location_at(x, y).value = "1" }.tap { |t| t.set_value(x, y + 1, "2", only_if_empty: true) }
-          dupl.location_at(x, y + 1).neighbours.select(&:is_empty?).each do |n|
-            racetracks << dupl.dup.tap { |t| t.location_at(n.x, n.y).value = "#" }
-          end
-        end
-        paths = racetracks.collect { |tr| Path.new(tr).tap(&:solve) }
-        paths.select(&:score).uniq { |p| p.locations_array }.each do |p|
-          @all_scores[p] = p.score
-        end
-        log "#{[x, y]} - tracks: #{racetracks.empty? ? "-" : racetracks.size} - Scores: #{@all_scores.compact.size}"
-      end
-    end
-  end
-
-  def track_duplicate_with_cheat(track, x, y)
+    @designs.select(&:possible?).sum(&:nr_of_towel_combinations)
   end
 end
 
-# Location
-class Location
-  def is_start?
-    self.value == "S"
+class Design
+  @@cache = {}
+
+  def self.reset_cache
+    @@cache = {}
   end
 
-  def is_shortcut?
-    self.value == "1"
+  def self.cache
+    @@cache
   end
 
-  def is_shortcuttable?
-    return false if is_wall?
-    true
+  def initialize(pattern, towels)
+    @pattern, @available_towels = pattern, towels.sort_by { |t| 0 - t.size }
   end
 
-  def is_end?
-    self.value == "E"
+  def possible?
+    pattern_possible?(@pattern)
   end
 
-  def is_wall?
-    self.value == "#"
+  def pattern_possible?(to_match)
+    return true if @available_towels.any? { |t| t.pattern == to_match }
+
+    possibilities = @available_towels.select { |t| t.pattern == to_match[0..(t.size - 1)] }
+    return false if possibilities.empty?
+    possibilities.collect { |t| to_match[t.size..] }.any? { |sub_pat| pattern_possible?(sub_pat) }
   end
 
-  def is_empty?
-    self.value == "."
+  def nr_of_towel_combinations
+    return [] unless possible?
+    @@cache = {} if @halt
+
+    nr_of_towel_combinations_for(@pattern)
+  end
+
+  def nr_of_towel_combinations_for(to_match)
+    if @@cache[to_match]
+      #  puts "====> Cache hit:  #{to_match} (#{@@cache.size})"
+      return @@cache[to_match]
+    end
+
+    result = 0
+    @available_towels.select { |t| t.pattern == to_match[0..(t.size - 1)] }.collect do |t|
+      result += 1 if t.pattern == to_match
+      next if to_match[t.size..] == ""
+      result += nr_of_towel_combinations_for(to_match[t.size..])
+    end
+
+    @@cache[to_match] = result
+    #  puts "====> *** Calculated: #{to_match} (Cache size: #{@@cache.size})"
+    result
   end
 end
 
-# Path
-class Path
-  attr_accessor :locations, :head
+class Towel
+  attr_accessor :pattern
 
-  def initialize(map)
-    @head = map.locations_flattened.detect(&:is_start?)
-    debugger unless @head
-    @locations = [@head]
-    score = nil
+  def initialize(pattern)
+    @pattern = pattern
   end
 
-  def initialize_dup(source)
-    @locations = source.locations.dup
-    @head = @locations.last
-    super
-  end
-
-  def to_s
-    "<Path: (#{head&.x}, #{head&.y}) - #{@locations.size} locations>"
-  end
-
-  def inspect
-    to_s
-  end
-
-  def key
-    [head.x, head.y]
-  end
-
-  def locations_array
-    @locations.collect { |loc| [loc.x, loc.y] }
-  end
-
-  def score
-    is_success? ? @locations.size - 1 : nil
-  end
-
-  def solve
-    ended = false
-    while !ended
-      current_head = @head
-      move
-      ended = @head == current_head || @head.is_end?
-    end
-    score
-  end
-
-  def move
-    n = head.neighbours.reject { |n| ["S", "#", "2", "O"].include?(n.value) }
-    return if n.empty?
-    if (shortcut = n.detect { |n| n.is_shortcut? })
-      shortcut_2 = shortcut.neighbours.detect { |n| n.value == "2" }
-      append(shortcut)
-      append(shortcut_2) if shortcut_2
-    else
-      debugger if !n.size == 1
-      append n.first
-    end
-  end
-
-  def append(loc)
-    loc.value = "O" unless loc.is_end?
-    @locations << loc
-    @head = loc
-  end
-
-  def is_success?
-    head.is_end?
-  end
-
-  def print
-    puts @head.map.locations_flattened.detect(&:is_shortcut?)
-    (0..@head.map.nr_of_rows - 1).each do |y|
-      line = ""
-      (0..@head.map.nr_of_columns - 1).each do |x|
-        line += @locations.any? { |l| l.x == x && l.y == y } ? "O" : @head.map.location_at(x, y).value
-      end
-      puts line
-    end
-  end
+  def size = @pattern.size
 end
 
 Day19.new.solve
