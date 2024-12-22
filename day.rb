@@ -41,6 +41,10 @@ class Day
     File.readlines(file_name).collect(&:strip)
   end
 
+  def log(string)
+    puts "#{Time.now} :: #{string}"
+  end
+
   def read_matrix
     rows = read_lines
     @matrix = rows.collect { |row| row.strip.chars }
@@ -90,6 +94,11 @@ end
 class Map
   attr_accessor :locations, :nr_of_rows, :nr_of_columns
 
+  def initialize_dup(source)
+    @locations = source.locations.collect { |arr| arr.collect { |loc| loc.dup.tap { |l| l.map = self } } }
+    super
+  end
+
   def self.new_from_input_lines(lines, &value_block)
     arrays = lines.collect { |l| l.strip.chars.collect { |input| value_block ? value_block.call(input) : input } }
     self.new(arrays)
@@ -120,6 +129,16 @@ class Map
     return nil unless y.between?(0, @nr_of_rows - 1)
 
     self.locations[y][x]
+  end
+
+  def value_at(x, y)
+    location_at(x, y) ? location_at(x, y).value : nil
+  end
+
+  def set_value(x, y, value, only_if_empty: false)
+    loc = location_at(x, y)
+    return if only_if_empty && !loc.is_empty?
+    loc.value = value
   end
 
   def print
